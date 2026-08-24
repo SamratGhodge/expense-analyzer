@@ -33,6 +33,11 @@ function Transactions() {
   const [customFromDate, setCustomFromDate] = useState('');
   const [customToDate, setCustomToDate] = useState('');
 
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkEditCategory, setBulkEditCategory] = useState('');
+  const [bulkEditPaymentMode, setBulkEditPaymentMode] = useState('');
+  const [bulkEditing, setBulkEditing] = useState(false);
+
   const fetchTransactions = async () => {
     setTableLoading(true);
     setError('');

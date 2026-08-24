@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
+import { validatePasswordStrength } from '../utils/security';
 
 function Profile() {
   const { user } = useAuth();
@@ -26,8 +27,9 @@ function Profile() {
     setError('');
     setSuccessMsg('');
 
-    if (!newPassword || newPassword.length < 6) {
-      setError('New password must be at least 6 characters.');
+    const pwCheck = validatePasswordStrength(newPassword);
+    if (!pwCheck.valid) {
+      setError(pwCheck.message);
       return;
     }
 

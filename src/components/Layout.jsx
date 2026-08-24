@@ -42,6 +42,11 @@ function Layout() {
               </NavLink>
             </li>
             <li>
+              <NavLink to="/import-statement" className={({ isActive }) => isActive ? 'active' : ''}>
+                Import Statement
+              </NavLink>
+            </li>
+            <li>
               <NavLink to="/profile" className={({ isActive }) => isActive ? 'active' : ''}>
                 Profile
               </NavLink>

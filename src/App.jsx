@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Insights from './pages/Insights';
+import StatementImport from './pages/StatementImport';
 import Profile from './pages/Profile';
 import './App.css';
 
@@ -14,10 +15,10 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Login — no sidebar/navbar */}
+          {/* Login — public route */}
           <Route path="/login" element={<Login />} />
 
-          {/* Protected routes with layout */}
+          {/* Protected routes with authenticated layout */}
           <Route
             element={
               <ProtectedRoute>
@@ -28,6 +29,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/insights" element={<Insights />} />
+            <Route path="/import-statement" element={<StatementImport />} />
             <Route path="/profile" element={<Profile />} />
           </Route>
 

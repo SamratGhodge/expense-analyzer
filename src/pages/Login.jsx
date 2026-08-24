@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { validatePasswordStrength, sanitizeText } from '../utils/security';
 
 function Login() {
   const navigate = useNavigate();
@@ -16,12 +17,19 @@ function Login() {
     setError('');
     setMessage('');
 
-    if (!email.trim() || !password) {
+    const cleanEmail = sanitizeText(email);
+    if (!cleanEmail || !password) {
       setError('Please fill in all fields.');
       return;
     }
 
-    if (password.length < 6) {
+    if (isSignup) {
+      const pwCheck = validatePasswordStrength(password);
+      if (!pwCheck.valid) {
+        setError(pwCheck.message);
+        return;
+      }
+    } else if (password.length < 6) {
       setError('Password must be at least 6 characters.');
       return;
     }

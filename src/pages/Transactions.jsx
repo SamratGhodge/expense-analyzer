@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { sanitizeText, validateAmount, isValidDate } from '../utils/security';
 
 const CATEGORIES = ['Food', 'Transport', 'Bills', 'Shopping', 'Entertainment', 'Other'];
 const PAYMENT_MODES = ['Cash', 'UPI', 'Card'];
@@ -72,11 +73,19 @@ function Transactions() {
       return;
     }
 
-    const amountNum = parseFloat(form.amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      setError('Please enter a valid positive amount.');
+    if (!isValidDate(form.date)) {
+      setError('Please select a valid date between year 2000 and 2100.');
       return;
     }
+
+    const amountCheck = validateAmount(form.amount);
+    if (!amountCheck.valid) {
+      setError(amountCheck.message);
+      return;
+    }
+
+    const amountNum = amountCheck.value;
+    const cleanDescription = sanitizeText(form.description);
 
     setLoading(true);
 
@@ -99,7 +108,7 @@ function Transactions() {
             amount: amountNum,
             payment_mode: form.payment_mode,
             txn_date: form.date,
-            description: form.description.trim(),
+            description: cleanDescription,
           })
           .eq('id', editingId)
           .eq('user_id', user.id);
@@ -112,7 +121,7 @@ function Transactions() {
               amount: amountNum,
               payment_mode: form.payment_mode,
               date: form.date,
-              description: form.description.trim(),
+              description: cleanDescription,
             })
             .eq('id', editingId)
             .eq('user_id', user.id);
@@ -137,7 +146,7 @@ function Transactions() {
             amount: amountNum,
             payment_mode: form.payment_mode,
             txn_date: form.date,
-            description: form.description.trim(),
+            description: cleanDescription,
           });
 
         if (insertError && insertError.message.includes('column "txn_date" does not exist')) {
@@ -149,7 +158,7 @@ function Transactions() {
               amount: amountNum,
               payment_mode: form.payment_mode,
               date: form.date,
-              description: form.description.trim(),
+              description: cleanDescription,
             });
           insertError = res.error;
         }

@@ -1,12 +1,13 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
+import { useAuth } from '../context/AuthContext';
 
 function Layout() {
   const navigate = useNavigate();
-  const userEmail = localStorage.getItem('ea_user') || 'user';
+  const { user } = useAuth();
 
-  const handleLogout = () => {
-    localStorage.removeItem('ea_logged_in');
-    localStorage.removeItem('ea_user');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     navigate('/login');
   };
 
@@ -16,7 +17,7 @@ function Layout() {
       <nav className="navbar">
         <div className="brand">Expense Analyzer</div>
         <div className="nav-right">
-          <span>{userEmail}</span>
+          <span>{user?.email || 'user'}</span>
           <button className="logout-btn" onClick={handleLogout}>Logout</button>
         </div>
       </nav>

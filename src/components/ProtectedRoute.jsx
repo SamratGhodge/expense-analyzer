@@ -6,8 +6,8 @@ function ProtectedRoute({ children }) {
 
   if (loading) {
     return (
-      <div style={{ padding: '60px', textAlign: 'center', color: '#888' }}>
-        Loading...
+      <div style={{ padding: '40px', maxWidth: '400px', margin: '40px auto' }}>
+        <div className="loading-state">Checking session...</div>
       </div>
     );
   }

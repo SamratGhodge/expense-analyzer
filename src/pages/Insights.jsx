@@ -7,42 +7,55 @@ function Insights() {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    async function fetchAll() {
-      const { data, error } = await supabase
+  const fetchTransactions = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data, error: fetchError } = await supabase
         .from('transactions')
         .select('*')
         .eq('user_id', user.id)
         .order('date', { ascending: true });
 
-      if (!error && data) {
-        setTransactions(data);
+      if (fetchError) {
+        setError(fetchError.message);
+      } else {
+        setTransactions(data || []);
       }
+    } catch (err) {
+      setError(err.message || 'Failed to load insights data.');
+    } finally {
       setLoading(false);
     }
-    fetchAll();
-  }, [user.id]);
+  };
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchTransactions();
+    }
+  }, [user?.id]);
 
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  // ---- Build monthly totals ----
+  // Monthly totals aggregation
   const monthlyTotals = {};
   for (const t of transactions) {
     if (!t.date) continue;
     const m = t.date.slice(0, 7);
-    monthlyTotals[m] = (monthlyTotals[m] || 0) + Number(t.amount);
+    monthlyTotals[m] = (monthlyTotals[m] || 0) + Number(t.amount || 0);
   }
 
-  // ---- Category breakdown for current month ----
+  // Category breakdown for current month
   const currentMonthTxns = transactions.filter(
     (t) => t.date && t.date.startsWith(currentMonthKey)
   );
   const categoryTotals = {};
   for (const t of currentMonthTxns) {
     const cat = t.category || 'Other';
-    categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(t.amount);
+    categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(t.amount || 0);
   }
   const categoryData = Object.entries(categoryTotals)
     .map(([name, amount]) => ({ name, amount: Math.round(amount) }))
@@ -50,12 +63,12 @@ function Insights() {
 
   const maxCatAmount = categoryData.length > 0 ? categoryData[0].amount : 1;
 
-  // ---- Top 5 expenses this month ----
+  // Top 5 expenses this month
   const topExpenses = [...currentMonthTxns]
-    .sort((a, b) => Number(b.amount) - Number(a.amount))
+    .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
     .slice(0, 5);
 
-  // ---- Monthly data for bar comparison (last 6 months) ----
+  // Monthly data for bar comparison (last 6 months)
   const monthlyBarData = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -98,7 +111,6 @@ function Insights() {
   //   WMA captures the trend direction better.
   // ===============================================================
 
-  // Collect month totals for the last 3-6 months (excluding current month)
   const predictionMonths = [];
   for (let i = 6; i >= 1; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -112,56 +124,57 @@ function Insights() {
   let trendText = '';
 
   if (predictionMonths.length >= 2) {
-    // Apply weighted moving average
-    // Weights: oldest gets 1, newest gets N
     const n = predictionMonths.length;
     let weightedSum = 0;
     let weightTotal = 0;
     for (let i = 0; i < n; i++) {
-      const weight = i + 1; // 1 for oldest, N for newest
+      const weight = i + 1;
       weightedSum += weight * predictionMonths[i];
       weightTotal += weight;
     }
     predictedAmount = Math.round(weightedSum / weightTotal);
 
-    // Determine trend by comparing the average of the first half vs second half
     const mid = Math.floor(n / 2);
     const firstHalfAvg =
       predictionMonths.slice(0, mid).reduce((s, v) => s + v, 0) / mid;
     const secondHalfAvg =
       predictionMonths.slice(mid).reduce((s, v) => s + v, 0) / (n - mid);
 
-    const changePercent = ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100;
+    const changePercent = ((secondHalfAvg - firstHalfAvg) / (firstHalfAvg || 1)) * 100;
 
     if (changePercent > 10) {
-      trendText = 'Your spending has been increasing — the prediction is weighted towards recent higher months.';
+      trendText = 'Your spending has been increasing — recent months carry higher weight.';
     } else if (changePercent < -10) {
-      trendText = 'Your spending has been decreasing — the prediction reflects your recent lower spending.';
+      trendText = 'Your spending has been decreasing — reflecting lower recent expenses.';
     } else {
-      trendText = 'Your spending has been relatively stable over the past few months.';
+      trendText = 'Your spending has remained relatively stable across recorded months.';
     }
   }
 
-  // ---- Recommendations ----
+  // Recommendations
   const recommendations = generateRecommendations(transactions, currentMonthKey);
-
-  if (loading) {
-    return (
-      <div>
-        <h1 className="page-title">Insights</h1>
-        <p style={{ color: '#888' }}>Loading...</p>
-      </div>
-    );
-  }
 
   return (
     <div>
-      <h1 className="page-title">Insights</h1>
+      <h1 className="page-title">Insights &amp; Analysis</h1>
 
-      {transactions.length === 0 ? (
-        <p style={{ color: '#999', fontSize: '14px' }}>
-          No transaction data yet. Add transactions to see insights.
-        </p>
+      {error && (
+        <div className="alert-error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Error loading data: {error}</span>
+          <button className="btn-secondary" style={{ padding: '3px 10px', fontSize: '12px' }} onClick={fetchTransactions}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="loading-state">Loading analytical insights...</div>
+      ) : transactions.length === 0 ? (
+        <div className="insight-box">
+          <p style={{ color: '#777777', fontSize: '13px' }}>
+            No transaction records available. Add transactions to see category breakdowns, forecasts, and tips.
+          </p>
+        </div>
       ) : (
         <>
           <div className="insight-grid">
@@ -169,7 +182,9 @@ function Insights() {
             <div className="insight-box">
               <h3>Expenses by Category (This Month)</h3>
               {categoryData.length === 0 ? (
-                <p style={{ color: '#999', fontSize: '13px' }}>No data this month</p>
+                <p style={{ color: '#777777', fontSize: '13px', padding: '16px 0', textAlign: 'center' }}>
+                  No spending recorded for this month.
+                </p>
               ) : (
                 categoryData.map((cat) => (
                   <div className="bar-chart-row" key={cat.name}>
@@ -205,18 +220,20 @@ function Insights() {
 
             {/* Top expenses */}
             <div className="insight-box">
-              <h3>Top 5 Expenses This Month</h3>
+              <h3>Top Expenses This Month</h3>
               {topExpenses.length === 0 ? (
-                <p style={{ color: '#999', fontSize: '13px' }}>No expenses this month</p>
+                <p style={{ color: '#777777', fontSize: '13px', padding: '16px 0', textAlign: 'center' }}>
+                  No expenses this month.
+                </p>
               ) : (
                 <table style={{ width: '100%', fontSize: '13px' }}>
                   <tbody>
                     {topExpenses.map((item, i) => (
                       <tr key={item.id}>
-                        <td style={{ padding: '6px 0', color: '#555' }}>
+                        <td style={{ padding: '5px 0', color: '#555555' }}>
                           {i + 1}. {item.description || item.category}
                         </td>
-                        <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 600, color: '#c0392b' }}>
+                        <td style={{ padding: '5px 0', textAlign: 'right', fontWeight: 600, color: '#c0392b' }}>
                           ₹{Number(item.amount).toLocaleString()}
                         </td>
                       </tr>
@@ -228,22 +245,22 @@ function Insights() {
 
             {/* Prediction */}
             <div className="insight-box">
-              <h3>Next Month Prediction (WMA)</h3>
+              <h3>Next-Month Forecast (WMA)</h3>
               {predictedAmount !== null ? (
                 <div>
-                  <div style={{ fontSize: '28px', fontWeight: 700, color: '#2e6db4', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: '#2e6db4', marginBottom: '6px' }}>
                     ₹{predictedAmount.toLocaleString()}
                   </div>
-                  <p style={{ fontSize: '13px', color: '#555', lineHeight: '1.5' }}>
+                  <p style={{ fontSize: '13px', color: '#444444', lineHeight: '1.4' }}>
                     {trendText}
                   </p>
-                  <p style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
-                    Based on weighted moving average of last {predictionMonths.length} month(s).
+                  <p style={{ fontSize: '11px', color: '#888888', marginTop: '8px' }}>
+                    Calculated via Weighted Moving Average across {predictionMonths.length} prior month(s).
                   </p>
                 </div>
               ) : (
-                <p style={{ color: '#999', fontSize: '13px' }}>
-                  Need at least 2 months of data to predict next month's spending.
+                <p style={{ color: '#777777', fontSize: '13px', lineHeight: '1.5' }}>
+                  A minimum of 2 prior completed months of transaction data is required to generate a reliable forecast.
                 </p>
               )}
             </div>
@@ -251,26 +268,21 @@ function Insights() {
 
           {/* Recommendations section */}
           <hr className="section-divider" />
-          <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '14px', color: '#333' }}>
-            Recommendations
-          </h2>
+          <h2 className="section-title">Spending Recommendations &amp; Alerts</h2>
 
           {recommendations.length === 0 ? (
-            <div className="insight-box" style={{ maxWidth: '600px' }}>
-              <p style={{ fontSize: '14px', color: '#555' }}>
-                ✓ Your spending looks normal across all categories this month. No alerts.
+            <div className="insight-box" style={{ maxWidth: '640px' }}>
+              <p style={{ fontSize: '13px', color: '#333333' }}>
+                All category expenses are within normal historical limits this month. No budget overspend alerts detected.
               </p>
             </div>
           ) : (
-            <div style={{ maxWidth: '600px' }}>
+            <div style={{ maxWidth: '640px' }}>
               {recommendations.map((rec) => (
-                <div
-                  key={rec.category}
-                  className="recommendation-item"
-                >
-                  <strong>{rec.category}</strong> — You've spent ₹{rec.currentSpend.toLocaleString()} this
-                  month, which is {rec.percentAbove}% above your monthly average of
-                  ₹{rec.avgSpend.toLocaleString()}. Consider reviewing your {rec.category.toLowerCase()} expenses.
+                <div key={rec.category} className="recommendation-item">
+                  <strong>{rec.category}:</strong> Current month spend of ₹{rec.currentSpend.toLocaleString()} is{' '}
+                  <span style={{ color: '#c0392b', fontWeight: 600 }}>{rec.percentAbove}% higher</span> than your
+                  historical monthly average (₹{rec.avgSpend.toLocaleString()}). Consider reviewing expenses in this category.
                 </div>
               ))}
             </div>

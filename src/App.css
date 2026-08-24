@@ -1,14 +1,14 @@
-/* App.css - layout styles */
+/* App.css - layout and component styles */
 
 /* ---- Navbar ---- */
 .navbar {
   background-color: #2e6db4;
-  color: #fff;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  height: 54px;
+  height: 52px;
   position: fixed;
   top: 0;
   left: 0;
@@ -17,51 +17,53 @@
 }
 
 .navbar .brand {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
 }
 
 .navbar .nav-right {
   display: flex;
   align-items: center;
-  gap: 18px;
-  font-size: 14px;
-}
-
-.navbar .nav-right span {
-  opacity: 0.85;
-}
-
-.navbar .nav-right .logout-btn {
-  background: none;
-  border: 1px solid rgba(255,255,255,0.5);
-  color: #fff;
-  padding: 5px 14px;
-  border-radius: 3px;
+  gap: 16px;
   font-size: 13px;
 }
 
+.navbar .nav-right span {
+  opacity: 0.9;
+}
+
+.navbar .nav-right .logout-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #ffffff;
+  padding: 4px 12px;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .navbar .nav-right .logout-btn:hover {
-  border-color: #fff;
+  border-color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* ---- App body (sidebar + content) ---- */
 .app-body {
   display: flex;
-  margin-top: 54px;
-  min-height: calc(100vh - 54px);
+  margin-top: 52px;
+  min-height: calc(100vh - 52px);
 }
 
 /* ---- Sidebar ---- */
 .sidebar {
-  width: 210px;
-  background-color: #fff;
-  border-right: 1px solid #ddd;
-  padding: 20px 0;
+  width: 200px;
+  background-color: #ffffff;
+  border-right: 1px solid #dddddd;
+  padding: 16px 0;
   flex-shrink: 0;
   position: fixed;
-  top: 54px;
+  top: 52px;
   bottom: 0;
   overflow-y: auto;
 }
@@ -76,9 +78,9 @@
 
 .sidebar ul li a {
   display: block;
-  padding: 10px 22px;
+  padding: 9px 20px;
   font-size: 14px;
-  color: #444;
+  color: #444444;
   border-left: 3px solid transparent;
 }
 
@@ -97,72 +99,94 @@
 /* ---- Main content ---- */
 .main-content {
   flex: 1;
-  margin-left: 210px;
-  padding: 28px 32px;
-  min-height: calc(100vh - 54px);
+  margin-left: 200px;
+  padding: 24px 28px;
+  min-height: calc(100vh - 52px);
 }
 
 .page-title {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
-  color: #222;
-  margin-bottom: 20px;
+  color: #222222;
+  margin-bottom: 18px;
 }
 
-/* ---- Cards / Boxes ---- */
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 12px;
+}
+
+/* ---- Cards / Stats ---- */
 .stat-row {
   display: flex;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
 .stat-card {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 18px 22px;
+  background: #ffffff;
+  border: 1px solid #dddddd;
+  border-radius: 3px;
+  padding: 16px 20px;
   flex: 1;
   min-width: 180px;
 }
 
 .stat-card .label {
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
-  color: #777;
-  margin-bottom: 6px;
+  color: #777777;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
 }
 
 .stat-card .value {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
-  color: #222;
+  color: #222222;
 }
 
 /* ---- Tables ---- */
+.data-table-container {
+  background: #ffffff;
+  border: 1px solid #dddddd;
+  border-radius: 3px;
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
 .data-table {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 24px;
+  background: #ffffff;
+  border-collapse: collapse;
+  width: 100%;
 }
 
 .data-table thead {
-  background-color: #f7f7f7;
+  background-color: #f8f8f8;
 }
 
 .data-table th {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: #555;
+  color: #555555;
   text-transform: uppercase;
-  border-bottom: 1px solid #ddd;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid #dddddd;
+  padding: 9px 12px;
 }
 
 .data-table td {
-  font-size: 14px;
-  border-bottom: 1px solid #eee;
+  font-size: 13px;
+  border-bottom: 1px solid #eeeeee;
+  padding: 9px 12px;
+  color: #333333;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .data-table tbody tr:hover {
@@ -171,24 +195,25 @@
 
 /* ---- Forms ---- */
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .form-group label {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: #555;
-  margin-bottom: 5px;
+  color: #555555;
+  margin-bottom: 4px;
 }
 
 .form-group input,
 .form-group select {
   width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #ccc;
+  padding: 7px 10px;
+  border: 1px solid #cccccc;
   border-radius: 3px;
-  background: #fff;
+  background: #ffffff;
+  font-size: 13px;
 }
 
 .form-group input:focus,
@@ -197,32 +222,96 @@
   border-color: #2e6db4;
 }
 
+/* ---- Buttons ---- */
 .btn-primary {
   background-color: #2e6db4;
-  color: #fff;
-  border: none;
-  padding: 9px 22px;
+  color: #ffffff;
+  border: 1px solid #2e6db4;
+  padding: 7px 18px;
   border-radius: 3px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
+  display: inline-block;
+  text-align: center;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background-color: #245a96;
+  border-color: #245a96;
 }
 
 .btn-secondary {
-  background-color: #fff;
+  background-color: #ffffff;
   color: #2e6db4;
   border: 1px solid #2e6db4;
-  padding: 9px 22px;
+  padding: 7px 18px;
   border-radius: 3px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
+  display: inline-block;
+  text-align: center;
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background-color: #f0f4f8;
+}
+
+/* Action buttons in tables */
+.action-btn {
+  background: #ffffff;
+  border: 1px solid #cccccc;
+  padding: 3px 8px;
+  font-size: 12px;
+  border-radius: 2px;
+  margin-right: 6px;
+  color: #444444;
+}
+
+.action-btn:hover:not(:disabled) {
+  border-color: #2e6db4;
+  color: #2e6db4;
+}
+
+.delete-btn {
+  color: #c0392b;
+}
+
+.delete-btn:hover:not(:disabled) {
+  border-color: #c0392b;
+  color: #c0392b;
+  background-color: #fdf2f2;
+}
+
+/* ---- Alerts & Notifications ---- */
+.alert-error {
+  background-color: #fdf2f2;
+  border: 1px solid #f5c6cb;
+  color: #c0392b;
+  padding: 9px 14px;
+  border-radius: 3px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.alert-success {
+  background-color: #eef9f2;
+  border: 1px solid #c3e6cb;
+  color: #27ae60;
+  padding: 9px 14px;
+  border-radius: 3px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.loading-state {
+  background: #ffffff;
+  border: 1px solid #dddddd;
+  border-radius: 3px;
+  padding: 24px;
+  text-align: center;
+  color: #666666;
+  font-size: 14px;
+  margin-bottom: 20px;
 }
 
 /* ---- Login Page ---- */
@@ -232,52 +321,49 @@
   justify-content: center;
   min-height: 100vh;
   background-color: #f5f5f5;
+  padding: 16px;
 }
 
 .login-box {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 36px 32px;
-  width: 380px;
-  max-width: 90vw;
+  background: #ffffff;
+  border: 1px solid #dddddd;
+  border-radius: 3px;
+  padding: 32px 28px;
+  width: 360px;
+  max-width: 100%;
 }
 
 .login-box h2 {
-  font-size: 20px;
+  font-size: 19px;
   color: #2e6db4;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .login-box p.subtitle {
-  font-size: 13px;
-  color: #888;
-  margin-bottom: 24px;
+  font-size: 12px;
+  color: #777777;
+  margin-bottom: 20px;
 }
 
-.login-box .form-group {
-  margin-bottom: 18px;
-}
-
-/* ---- Insights section ---- */
+/* ---- Insights Grid ---- */
 .insight-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px;
-  margin-bottom: 24px;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .insight-box {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #dddddd;
+  border-radius: 3px;
+  padding: 18px;
 }
 
 .insight-box h3 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: #333333;
   margin-bottom: 14px;
 }
 
@@ -289,15 +375,16 @@
 }
 
 .bar-chart-row .bar-label {
-  width: 90px;
-  color: #555;
+  width: 85px;
+  color: #555555;
   flex-shrink: 0;
+  font-size: 12px;
 }
 
 .bar-chart-row .bar-track {
   flex: 1;
-  height: 16px;
-  background-color: #eee;
+  height: 14px;
+  background-color: #eeeeee;
   border-radius: 2px;
   margin-right: 8px;
   overflow: hidden;
@@ -306,37 +393,37 @@
 .bar-chart-row .bar-fill {
   height: 100%;
   background-color: #2e6db4;
-  border-radius: 2px;
 }
 
 .bar-chart-row .bar-value {
-  width: 60px;
+  width: 65px;
   text-align: right;
   font-weight: 600;
-  color: #333;
+  color: #333333;
+  font-size: 12px;
 }
 
 /* ---- Profile ---- */
 .profile-card {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 28px;
-  max-width: 500px;
+  background: #ffffff;
+  border: 1px solid #dddddd;
+  border-radius: 3px;
+  padding: 24px;
+  max-width: 480px;
 }
 
 .profile-card .avatar-placeholder {
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background-color: #2e6db4;
-  color: #fff;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .profile-card .info-row {
@@ -344,38 +431,43 @@
 }
 
 .profile-card .info-row .info-label {
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
-  color: #888;
+  color: #777777;
+  letter-spacing: 0.4px;
 }
 
 .profile-card .info-row .info-value {
-  font-size: 15px;
-  color: #222;
+  font-size: 14px;
+  color: #222222;
+  word-break: break-all;
 }
 
-/* ---- Filters bar ---- */
-.filters-bar {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
+/* ---- Transaction form ---- */
+.txn-form-box {
+  background: #ffffff;
+  border: 1px solid #dddddd;
+  border-radius: 3px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
 }
 
-.filters-bar .form-group {
-  margin-bottom: 0;
-  min-width: 150px;
+.txn-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 12px 14px;
+  align-items: end;
 }
 
 /* ---- Category tag ---- */
 .category-tag {
   display: inline-block;
-  padding: 2px 9px;
+  padding: 2px 8px;
   font-size: 12px;
   border-radius: 2px;
   background-color: #e8f0fa;
   color: #2e6db4;
+  font-weight: 500;
 }
 
 /* ---- Amount colors ---- */
@@ -389,67 +481,22 @@
   font-weight: 600;
 }
 
-/* ---- Transaction form ---- */
-.txn-form-box {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 20px;
-  margin-bottom: 8px;
-}
-
-.txn-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  gap: 12px 16px;
-  align-items: end;
-}
-
-@media (max-width: 768px) {
-  .txn-form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ---- Action buttons (edit/delete) ---- */
-.action-btn {
-  background: none;
-  border: 1px solid #ccc;
-  padding: 3px 10px;
-  font-size: 12px;
-  border-radius: 2px;
-  margin-right: 4px;
-  color: #555;
-}
-
-.action-btn:hover {
-  border-color: #999;
-  color: #222;
-}
-
-.delete-btn:hover {
-  border-color: #c0392b;
-  color: #c0392b;
-}
-
 /* ---- Section divider ---- */
 .section-divider {
   border: none;
   border-top: 1px solid #e0e0e0;
-  margin: 24px 0;
+  margin: 20px 0;
 }
 
 /* ---- Recommendation items ---- */
 .recommendation-item {
-  background: #fff;
+  background: #ffffff;
+  border: 1px solid #dddddd;
   border-left: 4px solid #e67e22;
-  border: 1px solid #ddd;
-  border-left-width: 4px;
-  border-left-color: #e67e22;
-  padding: 14px 16px;
-  margin-bottom: 12px;
-  font-size: 14px;
-  color: #444;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #444444;
   line-height: 1.5;
   border-radius: 3px;
 }
@@ -461,12 +508,15 @@
   }
   .main-content {
     margin-left: 0;
-    padding: 20px 16px;
+    padding: 16px;
   }
   .insight-grid {
     grid-template-columns: 1fr;
   }
   .stat-row {
     flex-direction: column;
+  }
+  .txn-form-grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,51 +1,137 @@
+import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabaseClient';
+
 function Profile() {
-  const user = {
-    name: 'Samrat Ghodge',
-    email: localStorage.getItem('ea_user') || 'student@university.edu',
-    university: 'University of Technology',
-    department: 'Computer Science & Engineering',
-    year: 'Final Year (B.Tech)',
-    joined: 'August 2026',
+  const { user } = useAuth();
+  const [newPassword, setNewPassword] = useState('');
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const email = user?.email || 'student@university.edu';
+  const initial = email.charAt(0).toUpperCase();
+
+  // Format joined date from Supabase auth timestamp
+  const joinedDate = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric',
+      })
+    : 'August 2026';
+
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+
+    if (!newPassword || newPassword.length < 6) {
+      setError('New password must be at least 6 characters.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        setError(updateError.message);
+      } else {
+        setSuccessMsg('Password updated successfully.');
+        setNewPassword('');
+        setShowPasswordForm(false);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to update password.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div>
-      <h1 className="page-title">Profile</h1>
+      <h1 className="page-title">User Profile</h1>
+
+      {error && <div className="alert-error">{error}</div>}
+      {successMsg && <div className="alert-success">{successMsg}</div>}
 
       <div className="profile-card">
         <div className="avatar-placeholder">
-          {user.name.split(' ').map((n) => n[0]).join('')}
+          {initial}
         </div>
 
         <div className="info-row">
-          <div className="info-label">Name</div>
-          <div className="info-value">{user.name}</div>
+          <div className="info-label">Account Email</div>
+          <div className="info-value">{email}</div>
         </div>
+
         <div className="info-row">
-          <div className="info-label">Email</div>
-          <div className="info-value">{user.email}</div>
+          <div className="info-label">Project Details</div>
+          <div className="info-value">B.Tech CSE — Final Year Project</div>
         </div>
+
         <div className="info-row">
-          <div className="info-label">University</div>
-          <div className="info-value">{user.university}</div>
+          <div className="info-label">User ID (Auth UID)</div>
+          <div className="info-value" style={{ fontSize: '12px', color: '#666666', fontFamily: 'monospace' }}>
+            {user?.id || '—'}
+          </div>
         </div>
-        <div className="info-row">
-          <div className="info-label">Department</div>
-          <div className="info-value">{user.department}</div>
-        </div>
-        <div className="info-row">
-          <div className="info-label">Year</div>
-          <div className="info-value">{user.year}</div>
-        </div>
+
         <div className="info-row">
           <div className="info-label">Member Since</div>
-          <div className="info-value">{user.joined}</div>
+          <div className="info-value">{joinedDate}</div>
         </div>
 
         <hr className="section-divider" />
 
-        <button className="btn-primary" style={{ marginRight: '10px' }}>Edit Profile</button>
-        <button className="btn-secondary">Change Password</button>
+        {!showPasswordForm ? (
+          <div>
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                setShowPasswordForm(true);
+                setError('');
+                setSuccessMsg('');
+              }}
+            >
+              Change Password
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handlePasswordUpdate} style={{ marginTop: '8px' }}>
+            <div className="form-group">
+              <label htmlFor="new-password">New Password</label>
+              <input
+                id="new-password"
+                type="password"
+                placeholder="Enter at least 6 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="submit" className="btn-primary" disabled={loading}>
+                {loading ? 'Updating...' : 'Save New Password'}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setShowPasswordForm(false);
+                  setNewPassword('');
+                  setError('');
+                }}
+                disabled={loading}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

@@ -23,118 +23,133 @@ function Transactions() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Fetch transactions on mount
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
-
-  async function fetchTransactions() {
+  const fetchTransactions = async () => {
     setTableLoading(true);
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false });
+    setError('');
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false });
 
-    if (error) {
-      console.error('Fetch error:', error.message);
-    } else {
-      setTransactions(data || []);
+      if (fetchError) {
+        setError(fetchError.message);
+      } else {
+        setTransactions(data || []);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to fetch transactions.');
+    } finally {
+      setTableLoading(false);
     }
-    setTableLoading(false);
-  }
+  };
 
-  function handleChange(e) {
+  useEffect(() => {
+    if (user?.id) {
+      fetchTransactions();
+    }
+  }, [user?.id]);
+
+  const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-  }
+  };
 
-  async function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
 
     if (!form.amount || !form.date) {
-      setError('Amount and date are required');
+      setError('Amount and Date are required.');
       return;
     }
 
-    const amount = parseFloat(form.amount);
-    if (isNaN(amount) || amount <= 0) {
-      setError('Enter a valid positive amount');
+    const amountNum = parseFloat(form.amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setError('Please enter a valid positive amount.');
       return;
     }
 
     setLoading(true);
 
-    if (editingId) {
-      // Update existing
-      const { error: updateError } = await supabase
+    try {
+      if (editingId) {
+        const { error: updateError } = await supabase
+          .from('transactions')
+          .update({
+            category: form.category,
+            amount: amountNum,
+            payment_mode: form.payment_mode,
+            date: form.date,
+            description: form.description.trim(),
+          })
+          .eq('id', editingId)
+          .eq('user_id', user.id);
+
+        if (updateError) {
+          setError(updateError.message);
+        } else {
+          setSuccessMsg('Transaction updated successfully.');
+          setEditingId(null);
+          setForm({ ...emptyForm });
+          await fetchTransactions();
+        }
+      } else {
+        const { error: insertError } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: user.id,
+            category: form.category,
+            amount: amountNum,
+            payment_mode: form.payment_mode,
+            date: form.date,
+            description: form.description.trim(),
+          });
+
+        if (insertError) {
+          setError(insertError.message);
+        } else {
+          setSuccessMsg('Transaction added successfully.');
+          setForm({ ...emptyForm });
+          await fetchTransactions();
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'Operation failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this transaction?')) return;
+
+    setError('');
+    setSuccessMsg('');
+    try {
+      const { error: deleteError } = await supabase
         .from('transactions')
-        .update({
-          category: form.category,
-          amount,
-          payment_mode: form.payment_mode,
-          date: form.date,
-          description: form.description,
-        })
-        .eq('id', editingId)
+        .delete()
+        .eq('id', id)
         .eq('user_id', user.id);
 
-      if (updateError) {
-        setError(updateError.message);
+      if (deleteError) {
+        setError(deleteError.message);
       } else {
-        setSuccessMsg('Transaction updated');
-        setEditingId(null);
-        setForm({ ...emptyForm });
-        await fetchTransactions();
+        setSuccessMsg('Transaction deleted.');
+        setTransactions((prev) => prev.filter((t) => t.id !== id));
+        if (editingId === id) {
+          setEditingId(null);
+          setForm({ ...emptyForm });
+        }
       }
-    } else {
-      // Insert new
-      const { error: insertError } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: user.id,
-          category: form.category,
-          amount,
-          payment_mode: form.payment_mode,
-          date: form.date,
-          description: form.description,
-        });
-
-      if (insertError) {
-        setError(insertError.message);
-      } else {
-        setSuccessMsg('Transaction added');
-        setForm({ ...emptyForm });
-        await fetchTransactions();
-      }
+    } catch (err) {
+      setError(err.message || 'Failed to delete transaction.');
     }
+  };
 
-    setLoading(false);
-  }
-
-  async function handleDelete(id) {
-    if (!window.confirm('Delete this transaction?')) return;
-
-    const { error: deleteError } = await supabase
-      .from('transactions')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
-
-    if (deleteError) {
-      setError(deleteError.message);
-    } else {
-      setTransactions(transactions.filter((t) => t.id !== id));
-      // If we were editing this row, cancel
-      if (editingId === id) {
-        setEditingId(null);
-        setForm({ ...emptyForm });
-      }
-    }
-  }
-
-  function handleEdit(txn) {
+  const handleEdit = (txn) => {
     setEditingId(txn.id);
     setForm({
       category: txn.category,
@@ -145,34 +160,39 @@ function Transactions() {
     });
     setError('');
     setSuccessMsg('');
-    // Scroll to form
-    window.scrollTo({ top: 0 });
-  }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-  function handleCancelEdit() {
+  const handleCancelEdit = () => {
     setEditingId(null);
     setForm({ ...emptyForm });
     setError('');
     setSuccessMsg('');
-  }
+  };
 
   return (
     <div>
       <h1 className="page-title">Transactions</h1>
 
+      {error && <div className="alert-error">{error}</div>}
+      {successMsg && <div className="alert-success">{successMsg}</div>}
+
       {/* Add / Edit form */}
       <div className="txn-form-box">
-        <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '14px', color: '#333' }}>
-          {editingId ? 'Edit Transaction' : 'Add Transaction'}
-        </h3>
-
-        {error && <p style={{ color: '#c0392b', fontSize: '13px', marginBottom: '10px' }}>{error}</p>}
-        {successMsg && <p style={{ color: '#27ae60', fontSize: '13px', marginBottom: '10px' }}>{successMsg}</p>}
+        <h2 className="section-title">
+          {editingId ? 'Edit Transaction' : 'Add New Transaction'}
+        </h2>
 
         <form onSubmit={handleSubmit} className="txn-form-grid">
           <div className="form-group">
-            <label>Category</label>
-            <select name="category" value={form.category} onChange={handleChange}>
+            <label htmlFor="txn-category">Category</label>
+            <select
+              id="txn-category"
+              name="category"
+              value={form.category}
+              onChange={handleChange}
+              disabled={loading}
+            >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
@@ -180,21 +200,29 @@ function Transactions() {
           </div>
 
           <div className="form-group">
-            <label>Amount (₹)</label>
+            <label htmlFor="txn-amount">Amount (₹)</label>
             <input
+              id="txn-amount"
               type="number"
               name="amount"
               placeholder="0.00"
               value={form.amount}
               onChange={handleChange}
-              min="0"
-              step="0.01"
+              min="0.01"
+              step="any"
+              disabled={loading}
             />
           </div>
 
           <div className="form-group">
-            <label>Payment Mode</label>
-            <select name="payment_mode" value={form.payment_mode} onChange={handleChange}>
+            <label htmlFor="txn-payment-mode">Payment Mode</label>
+            <select
+              id="txn-payment-mode"
+              name="payment_mode"
+              value={form.payment_mode}
+              onChange={handleChange}
+              disabled={loading}
+            >
               {PAYMENT_MODES.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
@@ -202,29 +230,33 @@ function Transactions() {
           </div>
 
           <div className="form-group">
-            <label>Date</label>
+            <label htmlFor="txn-date">Date</label>
             <input
+              id="txn-date"
               type="date"
               name="date"
               value={form.date}
               onChange={handleChange}
+              disabled={loading}
             />
           </div>
 
           <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-            <label>Description (optional)</label>
+            <label htmlFor="txn-description">Description (optional)</label>
             <input
+              id="txn-description"
               type="text"
               name="description"
-              placeholder="e.g. Grocery shopping"
+              placeholder="e.g. Lunch with friends, Semester textbook"
               value={form.description}
               onChange={handleChange}
+              disabled={loading}
             />
           </div>
 
-          <div style={{ gridColumn: '1 / -1' }}>
+          <div style={{ gridColumn: '1 / -1', marginTop: '4px' }}>
             <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Saving...' : editingId ? 'Update' : 'Add Transaction'}
+              {loading ? 'Saving...' : editingId ? 'Update Transaction' : 'Save Transaction'}
             </button>
             {editingId && (
               <button
@@ -232,6 +264,7 @@ function Transactions() {
                 className="btn-secondary"
                 style={{ marginLeft: '10px' }}
                 onClick={handleCancelEdit}
+                disabled={loading}
               >
                 Cancel
               </button>
@@ -242,36 +275,34 @@ function Transactions() {
 
       <hr className="section-divider" />
 
-      {/* Transactions table */}
-      <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '14px', color: '#333' }}>
-        Your Transactions
-      </h3>
+      {/* Transactions list */}
+      <h2 className="section-title">All Transactions</h2>
 
       {tableLoading ? (
-        <p style={{ color: '#888', fontSize: '14px' }}>Loading transactions...</p>
+        <div className="loading-state">Loading transactions list...</div>
+      ) : transactions.length === 0 ? (
+        <div className="insight-box">
+          <p style={{ color: '#777777', fontSize: '13px' }}>
+            No transactions found. Use the form above to add your first expense.
+          </p>
+        </div>
       ) : (
         <>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Date</th>
-                <th>Description</th>
-                <th>Category</th>
-                <th>Payment</th>
-                <th>Amount</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.length === 0 ? (
+          <div className="data-table-container">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', color: '#999', padding: '24px' }}>
-                    No transactions yet. Add one above.
-                  </td>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Payment</th>
+                  <th>Amount</th>
+                  <th>Actions</th>
                 </tr>
-              ) : (
-                transactions.map((t, idx) => (
+              </thead>
+              <tbody>
+                {transactions.map((t, idx) => (
                   <tr key={t.id}>
                     <td>{idx + 1}</td>
                     <td>{t.date}</td>
@@ -280,21 +311,29 @@ function Transactions() {
                     <td>{t.payment_mode}</td>
                     <td className="amount-expense">₹{Number(t.amount).toLocaleString()}</td>
                     <td>
-                      <button className="action-btn edit-btn" onClick={() => handleEdit(t)}>
+                      <button
+                        className="action-btn"
+                        onClick={() => handleEdit(t)}
+                        title="Edit transaction"
+                      >
                         Edit
                       </button>
-                      <button className="action-btn delete-btn" onClick={() => handleDelete(t.id)}>
+                      <button
+                        className="action-btn delete-btn"
+                        onClick={() => handleDelete(t.id)}
+                        title="Delete transaction"
+                      >
                         Delete
                       </button>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-          <p style={{ fontSize: '13px', color: '#999', marginTop: '10px' }}>
-            Total: {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+          <p style={{ fontSize: '12px', color: '#888888' }}>
+            Showing {transactions.length} recorded transaction{transactions.length !== 1 ? 's' : ''}.
           </p>
         </>
       )}

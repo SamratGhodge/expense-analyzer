@@ -16,43 +16,48 @@ function Login() {
     setError('');
     setMessage('');
 
-    if (!email || !password) {
-      setError('Please fill in all fields');
+    if (!email.trim() || !password) {
+      setError('Please fill in all fields.');
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Password must be at least 6 characters.');
       return;
     }
 
     setLoading(true);
 
-    if (isSignup) {
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+    try {
+      if (isSignup) {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+        });
 
-      if (signUpError) {
-        setError(signUpError.message);
+        if (signUpError) {
+          setError(signUpError.message);
+        } else {
+          setMessage('Account created! You can now log in.');
+          setIsSignup(false);
+        }
       } else {
-        setMessage('Account created! Check your email for confirmation, or log in if email confirmation is disabled.');
-      }
-    } else {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
 
-      if (signInError) {
-        setError(signInError.message);
-      } else {
-        navigate('/dashboard');
+        if (signInError) {
+          setError(signInError.message);
+        } else {
+          navigate('/dashboard');
+        }
       }
+    } catch (err) {
+      setError(err.message || 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -61,18 +66,20 @@ function Login() {
         <h2>Expense Analyzer</h2>
         <p className="subtitle">Final Year Project — B.Tech CSE</p>
 
-        {error && <p style={{ color: '#c0392b', fontSize: '13px', marginBottom: '12px' }}>{error}</p>}
-        {message && <p style={{ color: '#27ae60', fontSize: '13px', marginBottom: '12px' }}>{message}</p>}
+        {error && <div className="alert-error">{error}</div>}
+        {message && <div className="alert-success">{message}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">Email Address</label>
             <input
               id="email"
               type="email"
               placeholder="student@university.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
+              autoComplete="email"
             />
           </div>
           <div className="form-group">
@@ -83,26 +90,30 @@ function Login() {
               placeholder="Min 6 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+              autoComplete="current-password"
             />
           </div>
           <button
             type="submit"
             className="btn-primary"
-            style={{ width: '100%', marginTop: '4px' }}
+            style={{ width: '100%', marginTop: '6px' }}
             disabled={loading}
           >
             {loading ? 'Please wait...' : isSignup ? 'Sign Up' : 'Login'}
           </button>
         </form>
 
-        <p style={{ fontSize: '13px', color: '#666', marginTop: '18px', textAlign: 'center' }}>
+        <p style={{ fontSize: '13px', color: '#666', marginTop: '16px', textAlign: 'center' }}>
           {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <span
-            style={{ color: '#2e6db4', cursor: 'pointer', fontWeight: 600 }}
+          <button
+            type="button"
+            style={{ background: 'none', border: 'none', color: '#2e6db4', fontWeight: 600, padding: 0, fontSize: '13px' }}
             onClick={() => { setIsSignup(!isSignup); setError(''); setMessage(''); }}
+            disabled={loading}
           >
             {isSignup ? 'Login' : 'Sign Up'}
-          </span>
+          </button>
         </p>
       </div>
     </div>

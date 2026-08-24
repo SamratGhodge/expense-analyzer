@@ -97,7 +97,7 @@ function Login() {
     <div className="login-page">
       <div className="login-box">
         <h2>Expense Analyzer</h2>
-        <p className="subtitle">Final Year Project — B.Tech CSE</p>
+        <p className="subtitle">Smart Personal Expense &amp; Budget Management</p>
 
         {error && <div className="alert-error">{error}</div>}
         {message && <div className="alert-success">{message}</div>}

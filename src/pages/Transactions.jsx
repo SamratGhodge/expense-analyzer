@@ -25,6 +25,14 @@ function Transactions() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Selection State for multi-select functionality
+  // selectedIds stores array of selected transaction ids (filtered or otherwise)
+  const [selectedIds, setSelectedIds] = useState([]);
+  // Bulk edit state
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkCategory, setBulkCategory] = useState(''); // empty means 'no change'
+  const [bulkPaymentMode, setBulkPaymentMode] = useState(''); // empty means 'no change'
+
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
@@ -32,6 +40,10 @@ function Transactions() {
   const [datePreset, setDatePreset] = useState('all');
   const [customFromDate, setCustomFromDate] = useState('');
   const [customToDate, setCustomToDate] = useState('');
+
+  // Sorting
+  // Options: 'newest' | 'oldest' | 'highest' | 'lowest'
+  const [sortOption, setSortOption] = useState('newest');
 
   const fetchTransactions = async () => {
     setTableLoading(true);
@@ -191,6 +203,8 @@ function Transactions() {
       } else {
         setSuccessMsg('Transaction deleted.');
         setTransactions((prev) => prev.filter((t) => t.id !== id));
+        // ensure selection state is updated if this id was selected
+        setSelectedIds((prev) => prev.filter((x) => x !== id));
         if (editingId === id) {
           setEditingId(null);
           setForm({ ...emptyForm });
@@ -212,6 +226,22 @@ function Transactions() {
     });
     setError('');
     setSuccessMsg('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Duplicate a transaction into the Add form (does not save immediately)
+  const handleDuplicate = (txn) => {
+    const today = new Date().toISOString().split('T')[0];
+    setEditingId(null); // ensure we're in Add mode
+    setForm({
+      category: txn.category || emptyForm.category,
+      amount: String(txn.amount || ''),
+      payment_mode: txn.payment_mode || emptyForm.payment_mode,
+      date: today,
+      description: txn.description || '',
+    });
+    setError('');
+    setSuccessMsg('Transaction copied to form. You can edit and save it.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -272,6 +302,34 @@ function Transactions() {
     return true;
   });
 
+  // Apply sorting on the filtered results to produce the visible list
+  const sortedTransactions = (() => {
+    const list = [...filteredTransactions];
+    switch (sortOption) {
+      case 'oldest':
+        list.sort((a, b) => {
+          const ta = a.date ? new Date(a.date).getTime() : 0;
+          const tb = b.date ? new Date(b.date).getTime() : 0;
+          return ta - tb;
+        });
+        break;
+      case 'highest':
+        list.sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0));
+        break;
+      case 'lowest':
+        list.sort((a, b) => Number(a.amount || 0) - Number(b.amount || 0));
+        break;
+      case 'newest':
+      default:
+        list.sort((a, b) => {
+          const ta = a.date ? new Date(a.date).getTime() : 0;
+          const tb = b.date ? new Date(b.date).getTime() : 0;
+          return tb - ta;
+        });
+    }
+    return list;
+  })();
+
   const totalFilteredAmount = filteredTransactions.reduce(
     (sum, t) => sum + Number(t.amount || 0),
     0
@@ -284,6 +342,124 @@ function Transactions() {
     setDatePreset('all');
     setCustomFromDate('');
     setCustomToDate('');
+  };
+
+  // Selection helpers
+  const isSelected = (id) => selectedIds.includes(id);
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      return [...prev, id];
+    });
+  };
+
+  // Selects only the currently filtered transactions (or clears them)
+  const toggleSelectAll = () => {
+    const filteredIds = sortedTransactions.map((t) => t.id);
+    // If all filtered are already selected, unselect them; otherwise select them (union)
+    const allSelected = filteredIds.every((id) => selectedIds.includes(id)) && filteredIds.length > 0;
+    if (allSelected) {
+      // remove filteredIds from selection
+      setSelectedIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
+    } else {
+      // add missing filtered ids
+      setSelectedIds((prev) => {
+        const s = new Set(prev);
+        filteredIds.forEach((id) => s.add(id));
+        return Array.from(s);
+      });
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected transaction${selectedIds.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+
+    setError('');
+    setSuccessMsg('');
+    try {
+      // Supabase supports .in for bulk deletes; restrict by user_id as well
+      const { error: deleteError } = await supabase
+        .from('transactions')
+        .delete()
+        .in('id', selectedIds)
+        .eq('user_id', user.id);
+
+      if (deleteError) {
+        setError(deleteError.message);
+      } else {
+        setSuccessMsg(`${selectedIds.length} transaction${selectedIds.length > 1 ? 's' : ''} deleted.`);
+        // remove deleted from local state
+        setTransactions((prev) => prev.filter((t) => !selectedIds.includes(t.id)));
+        setSelectedIds([]);
+        if (editingId && selectedIds.includes(editingId)) {
+          setEditingId(null);
+          setForm({ ...emptyForm });
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to delete selected transactions.');
+    }
+  };
+
+  // Bulk edit handlers
+  const handleStartBulkEdit = () => {
+    if (selectedIds.length === 0) return;
+    setBulkCategory('');
+    setBulkPaymentMode('');
+    setBulkEditing(true);
+  };
+
+  const handleCancelBulkEdit = () => {
+    setBulkEditing(false);
+    setBulkCategory('');
+    setBulkPaymentMode('');
+  };
+
+  const handleApplyBulkEdit = async () => {
+    if (selectedIds.length === 0) return;
+    // Build update object only with provided fields
+    const updates = {};
+    if (bulkCategory) updates.category = bulkCategory;
+    if (bulkPaymentMode) updates.payment_mode = bulkPaymentMode;
+
+    if (Object.keys(updates).length === 0) {
+      setError('Please select at least one field to update (or cancel).');
+      return;
+    }
+
+    if (!window.confirm(`Apply changes to ${selectedIds.length} selected transaction${selectedIds.length > 1 ? 's' : ''}?`)) return;
+
+    setError('');
+    setSuccessMsg('');
+    try {
+      const { error: updateError } = await supabase
+        .from('transactions')
+        .update(updates)
+        .in('id', selectedIds)
+        .eq('user_id', user.id);
+
+      if (updateError) {
+        setError(updateError.message);
+      } else {
+        // Update local state
+        setTransactions((prev) => prev.map((t) => (
+          selectedIds.includes(t.id) ? { ...t, ...updates } : t
+        )));
+
+        setSuccessMsg(`${selectedIds.length} transaction${selectedIds.length > 1 ? 's' : ''} updated.`);
+        setBulkEditing(false);
+        setBulkCategory('');
+        setBulkPaymentMode('');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to update selected transactions.');
+    }
   };
 
   return (
@@ -394,21 +570,118 @@ function Transactions() {
       {/* Advanced Filter, Search & Export Toolbar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
         <h2 className="section-title" style={{ margin: 0 }}>Transaction Records</h2>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            className="btn-secondary"
-            style={{ fontSize: '12px', padding: '6px 12px' }}
-            onClick={() => exportTransactionsToCSV(filteredTransactions, 'filtered_expenses.csv')}
-          >
-            📥 Export CSV
-          </button>
-          <button
-            className="btn-secondary"
-            style={{ fontSize: '12px', padding: '6px 12px' }}
-            onClick={() => printExpenseReport(filteredTransactions, user?.email, datePreset === 'custom' ? `${customFromDate} to ${customToDate}` : datePreset)}
-          >
-            🖨️ Print / PDF Report
-          </button>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* Selection summary & actions */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span style={{ fontSize: '13px', color: '#333' }}>{selectedIds.length} selected</span>
+
+            {/* Bulk Edit button - shown when at least one selected */}
+            <button
+              className="btn-secondary"
+              style={{ fontSize: '12px', padding: '6px 10px' }}
+              onClick={handleStartBulkEdit}
+              disabled={selectedIds.length === 0}
+              title="Bulk edit selected transactions"
+            >
+              ✏️ Bulk Edit
+            </button>
+
+            <button
+              className="btn-secondary"
+              style={{ fontSize: '12px', padding: '6px 10px' }}
+              onClick={handleDeleteSelected}
+              disabled={selectedIds.length === 0}
+              title="Delete selected transactions"
+            >
+              🗑️ Delete Selected
+            </button>
+            <button
+              className="btn-secondary"
+              style={{ fontSize: '12px', padding: '6px 10px' }}
+              onClick={clearSelection}
+              disabled={selectedIds.length === 0}
+              title="Clear selection"
+            >
+              ✖️ Clear Selection
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {/* When bulkEditing is active, show small inline form for category/payment_mode */}
+            {bulkEditing ? (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <select
+                  value={bulkCategory}
+                  onChange={(e) => setBulkCategory(e.target.value)}
+                  style={{ padding: '6px', fontSize: '13px' }}
+                >
+                  <option value="">— No change (Category) —</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={bulkPaymentMode}
+                  onChange={(e) => setBulkPaymentMode(e.target.value)}
+                  style={{ padding: '6px', fontSize: '13px' }}
+                >
+                  <option value="">— No change (Payment Mode) —</option>
+                  {PAYMENT_MODES.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+
+                <button
+                  className="btn-primary"
+                  style={{ fontSize: '13px', padding: '6px 10px' }}
+                  onClick={handleApplyBulkEdit}
+                >
+                  Apply
+                </button>
+                <button
+                  className="btn-secondary"
+                  style={{ fontSize: '13px', padding: '6px 10px' }}
+                  onClick={handleCancelBulkEdit}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label htmlFor="sort-select" style={{ fontSize: '13px', color: '#333', marginRight: '4px' }}>Sort</label>
+                <select
+                  id="sort-select"
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value)}
+                  style={{ padding: '6px', fontSize: '13px' }}
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="highest">Highest Amount</option>
+                  <option value="lowest">Lowest Amount</option>
+                </select>
+              </div>
+
+              <button
+                className="btn-secondary"
+                style={{ fontSize: '12px', padding: '6px 12px' }}
+                onClick={() => exportTransactionsToCSV(sortedTransactions, 'filtered_expenses.csv')}
+              >
+                📥 Export CSV
+              </button>
+              <button
+                className="btn-secondary"
+                style={{ fontSize: '12px', padding: '6px 12px' }}
+                onClick={() => printExpenseReport(sortedTransactions, user?.email, datePreset === 'custom' ? `${customFromDate} to ${customToDate}` : datePreset)}
+              >
+                🖨️ Print / PDF Report
+              </button>
+            </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -519,6 +792,14 @@ function Transactions() {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px' }}>
+                    <input
+                      type="checkbox"
+                      onChange={toggleSelectAll}
+                      checked={sortedTransactions.length > 0 && sortedTransactions.every((tt) => selectedIds.includes(tt.id))}
+                      title="Select all filtered transactions"
+                    />
+                  </th>
                   <th>#</th>
                   <th>Date</th>
                   <th>Description</th>
@@ -529,8 +810,16 @@ function Transactions() {
                 </tr>
               </thead>
               <tbody>
-                {filteredTransactions.map((t, idx) => (
-                  <tr key={t.id}>
+                {sortedTransactions.map((t, idx) => (
+                  <tr key={t.id} style={isSelected(t.id) ? { backgroundColor: '#f5fbff' } : undefined}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={isSelected(t.id)}
+                        onChange={() => toggleSelect(t.id)}
+                        aria-label={`Select transaction ${idx + 1}`}
+                      />
+                    </td>
                     <td>{idx + 1}</td>
                     <td>{t.date}</td>
                     <td>{t.description || '—'}</td>
@@ -545,6 +834,15 @@ function Transactions() {
                       >
                         Edit
                       </button>
+
+                      <button
+                        className="action-btn"
+                        onClick={() => handleDuplicate(t)}
+                        title="Duplicate transaction to form"
+                      >
+                        Duplicate
+                      </button>
+
                       <button
                         className="action-btn delete-btn"
                         onClick={() => handleDelete(t.id)}

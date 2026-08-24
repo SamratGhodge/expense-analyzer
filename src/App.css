@@ -439,6 +439,21 @@
   margin: 24px 0;
 }
 
+/* ---- Recommendation items ---- */
+.recommendation-item {
+  background: #fff;
+  border-left: 4px solid #e67e22;
+  border: 1px solid #ddd;
+  border-left-width: 4px;
+  border-left-color: #e67e22;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #444;
+  line-height: 1.5;
+  border-radius: 3px;
+}
+
 /* ---- Responsive (basic) ---- */
 @media (max-width: 768px) {
   .sidebar {

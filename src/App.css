@@ -329,7 +329,7 @@
   border: 1px solid #dddddd;
   border-radius: 3px;
   padding: 32px 28px;
-  width: 360px;
+  width: 380px;
   max-width: 100%;
 }
 
@@ -342,7 +342,46 @@
 .login-box p.subtitle {
   font-size: 12px;
   color: #777777;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
+}
+
+/* OTP Code input styling */
+.otp-code-input {
+  width: 100%;
+  font-size: 22px;
+  font-family: monospace;
+  letter-spacing: 8px;
+  text-align: center;
+  padding: 10px;
+  border: 2px solid #2e6db4;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  color: #222222;
+}
+
+.auth-nav-tabs {
+  display: flex;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 16px;
+}
+
+.auth-nav-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 8px 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.auth-nav-tab.active {
+  color: #2e6db4;
+  border-bottom-color: #2e6db4;
+  font-weight: 600;
 }
 
 /* ---- Insights Grid ---- */

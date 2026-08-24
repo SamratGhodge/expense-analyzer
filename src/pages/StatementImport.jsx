@@ -187,8 +187,8 @@ function StatementImport() {
       <div className="txn-form-box">
         <h2 className="section-title">Upload Bank Statement (CSV / Text)</h2>
         <p style={{ fontSize: '13px', color: '#666666', marginBottom: '14px', lineHeight: '1.5' }}>
-          Upload an exported account statement from any bank (SBI, HDFC, ICICI, Axis, etc.).
-          The parser will extract transaction dates, filter debits, and automatically assign spending categories based on merchant names.
+          Upload an exported account statement from any bank (SBI, HDFC, ICICI, Axis, Kotak, PayTM, etc.).
+          The parser will automatically identify headers, extract dates, filter debits, and assign spending categories based on merchant keywords.
         </p>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -205,6 +205,25 @@ function StatementImport() {
             disabled={!file || parsing || saving}
           >
             {parsing ? 'Analyzing Statement...' : 'Parse & Analyze Statement'}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              const sampleCSV = `Date,Narration,Withdrawal (Dr),Deposit (Cr),Balance\n01/08/2026,UPI/Swiggy Bangalore/Order5678,450.00,,45200.00\n03/08/2026,Uber India Trip/Ride Payment,320.00,,44880.00\n05/08/2026,Bescom Electricity Bill Payment,1200.00,,43680.00\n10/08/2026,Amazon Retail Online Shopping,1499.00,,42181.00\n15/08/2026,Netflix Monthly Subscription,649.00,,41532.00\n18/08/2026,Zepto Quick Grocery Delivery,580.00,,40952.00\n20/08/2026,Salary Credit August 2026,,35000.00,75952.00`;
+              const blob = new Blob([sampleCSV], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.setAttribute('download', 'sample_bank_statement.csv');
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            disabled={parsing || saving}
+            style={{ fontSize: '12px', padding: '7px 14px' }}
+          >
+            Download Sample CSV
           </button>
         </div>
 

@@ -5,7 +5,9 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
+import Budgets from './pages/Budgets';
 import Insights from './pages/Insights';
+import Subscriptions from './pages/Subscriptions';
 import StatementImport from './pages/StatementImport';
 import Profile from './pages/Profile';
 import './App.css';
@@ -28,7 +30,9 @@ function App() {
           >
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/budgets" element={<Budgets />} />
             <Route path="/insights" element={<Insights />} />
+            <Route path="/subscriptions" element={<Subscriptions />} />
             <Route path="/import-statement" element={<StatementImport />} />
             <Route path="/profile" element={<Profile />} />
           </Route>

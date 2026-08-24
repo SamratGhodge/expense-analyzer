@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { sanitizeText, validateAmount, isValidDate } from '../utils/security';
+import { exportTransactionsToCSV, printExpenseReport } from '../utils/exportReport';
 
 const CATEGORIES = ['Food', 'Transport', 'Bills', 'Shopping', 'Entertainment', 'Other'];
 const PAYMENT_MODES = ['Cash', 'UPI', 'Card'];
@@ -24,6 +25,14 @@ function Transactions() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Filters State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [filterPaymentMode, setFilterPaymentMode] = useState('All');
+  const [datePreset, setDatePreset] = useState('all');
+  const [customFromDate, setCustomFromDate] = useState('');
+  const [customToDate, setCustomToDate] = useState('');
+
   const fetchTransactions = async () => {
     setTableLoading(true);
     setError('');
@@ -36,13 +45,11 @@ function Transactions() {
       if (fetchError) {
         setError(fetchError.message);
       } else {
-        // Normalize date from either txn_date or date column
         const normalized = (data || []).map((t) => ({
           ...t,
           date: t.txn_date || t.date || t.created_at?.split('T')[0] || '',
         }));
 
-        // Sort descending by date
         normalized.sort((a, b) => new Date(b.date) - new Date(a.date));
         setTransactions(normalized);
       }
@@ -91,16 +98,6 @@ function Transactions() {
 
     try {
       if (editingId) {
-        // Try updating with txn_date first, fallback to date
-        let updatePayload = {
-          category: form.category,
-          amount: amountNum,
-          payment_mode: form.payment_mode,
-          txn_date: form.date,
-          date: form.date,
-          description: form.description.trim(),
-        };
-
         let { error: updateError } = await supabase
           .from('transactions')
           .update({
@@ -137,7 +134,6 @@ function Transactions() {
           await fetchTransactions();
         }
       } else {
-        // Insert with txn_date, fallback to date if txn_date doesn't exist
         let { error: insertError } = await supabase
           .from('transactions')
           .insert({
@@ -226,9 +222,73 @@ function Transactions() {
     setSuccessMsg('');
   };
 
+  // Filter application
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthKey = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  const ninetyDaysStr = ninetyDaysAgo.toISOString().split('T')[0];
+
+  const filteredTransactions = transactions.filter((t) => {
+    const desc = (t.description || '').toLowerCase();
+    const cat = (t.category || '').toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
+
+    // Search query filter
+    if (q && !desc.includes(q) && !cat.includes(q)) {
+      return false;
+    }
+
+    // Category filter
+    if (filterCategory !== 'All' && t.category !== filterCategory) {
+      return false;
+    }
+
+    // Payment Mode filter
+    if (filterPaymentMode !== 'All' && t.payment_mode !== filterPaymentMode) {
+      return false;
+    }
+
+    // Date Presets filter
+    const txnDate = t.date;
+    if (datePreset === 'this_month' && !txnDate.startsWith(currentMonthKey)) {
+      return false;
+    }
+    if (datePreset === 'last_month' && !txnDate.startsWith(lastMonthKey)) {
+      return false;
+    }
+    if (datePreset === 'last_90' && txnDate < ninetyDaysStr) {
+      return false;
+    }
+    if (datePreset === 'custom') {
+      if (customFromDate && txnDate < customFromDate) return false;
+      if (customToDate && txnDate > customToDate) return false;
+    }
+
+    return true;
+  });
+
+  const totalFilteredAmount = filteredTransactions.reduce(
+    (sum, t) => sum + Number(t.amount || 0),
+    0
+  );
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setFilterCategory('All');
+    setFilterPaymentMode('All');
+    setDatePreset('all');
+    setCustomFromDate('');
+    setCustomToDate('');
+  };
+
   return (
     <div>
-      <h1 className="page-title">Transactions</h1>
+      <h1 className="page-title">Transactions Management</h1>
 
       {error && <div className="alert-error">{error}</div>}
       {successMsg && <div className="alert-success">{successMsg}</div>}
@@ -236,7 +296,7 @@ function Transactions() {
       {/* Add / Edit form */}
       <div className="txn-form-box">
         <h2 className="section-title">
-          {editingId ? 'Edit Transaction' : 'Add New Transaction'}
+          {editingId ? 'Edit Transaction' : 'Add New Expense'}
         </h2>
 
         <form onSubmit={handleSubmit} className="txn-form-grid">
@@ -303,7 +363,7 @@ function Transactions() {
               id="txn-description"
               type="text"
               name="description"
-              placeholder="e.g. Lunch with friends, Semester textbook"
+              placeholder="e.g. Lunch at canteen, Metro Smartcard recharge"
               value={form.description}
               onChange={handleChange}
               disabled={loading}
@@ -331,15 +391,126 @@ function Transactions() {
 
       <hr className="section-divider" />
 
-      {/* Transactions list */}
-      <h2 className="section-title">All Transactions</h2>
+      {/* Advanced Filter, Search & Export Toolbar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
+        <h2 className="section-title" style={{ margin: 0 }}>Transaction Records</h2>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            className="btn-secondary"
+            style={{ fontSize: '12px', padding: '6px 12px' }}
+            onClick={() => exportTransactionsToCSV(filteredTransactions, 'filtered_expenses.csv')}
+          >
+            📥 Export CSV
+          </button>
+          <button
+            className="btn-secondary"
+            style={{ fontSize: '12px', padding: '6px 12px' }}
+            onClick={() => printExpenseReport(filteredTransactions, user?.email, datePreset === 'custom' ? `${customFromDate} to ${customToDate}` : datePreset)}
+          >
+            🖨️ Print / PDF Report
+          </button>
+        </div>
+      </div>
 
+      {/* Filter controls box */}
+      <div className="txn-form-box" style={{ padding: '14px 18px', marginBottom: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', alignItems: 'end' }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label htmlFor="search-input">Search Merchant/Note</label>
+            <input
+              id="search-input"
+              type="text"
+              placeholder="e.g. Swiggy, Uber"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label htmlFor="filter-cat">Category</label>
+            <select
+              id="filter-cat"
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+            >
+              <option value="All">All Categories</option>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label htmlFor="filter-pay">Payment Mode</label>
+            <select
+              id="filter-pay"
+              value={filterPaymentMode}
+              onChange={(e) => setFilterPaymentMode(e.target.value)}
+            >
+              <option value="All">All Modes</option>
+              {PAYMENT_MODES.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label htmlFor="filter-date">Date Period</label>
+            <select
+              id="filter-date"
+              value={datePreset}
+              onChange={(e) => setDatePreset(e.target.value)}
+            >
+              <option value="all">All Time</option>
+              <option value="this_month">This Month</option>
+              <option value="last_month">Last Month</option>
+              <option value="last_90">Last 90 Days</option>
+              <option value="custom">Custom Date Range</option>
+            </select>
+          </div>
+
+          {datePreset === 'custom' && (
+            <>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label htmlFor="from-date">From</label>
+                <input
+                  id="from-date"
+                  type="date"
+                  value={customFromDate}
+                  onChange={(e) => setCustomFromDate(e.target.value)}
+                />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label htmlFor="to-date">To</label>
+                <input
+                  id="to-date"
+                  type="date"
+                  value={customToDate}
+                  onChange={(e) => setCustomToDate(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              className="btn-secondary"
+              style={{ padding: '7px 12px', fontSize: '13px', width: '100%' }}
+              onClick={handleResetFilters}
+            >
+              Reset Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Transactions list */}
       {tableLoading ? (
         <div className="loading-state">Loading transactions list...</div>
-      ) : transactions.length === 0 ? (
+      ) : filteredTransactions.length === 0 ? (
         <div className="insight-box">
           <p style={{ color: '#777777', fontSize: '13px' }}>
-            No transactions found. Use the form above to add your first expense.
+            No transactions match the selected filters. Try adjusting your search query or date range.
           </p>
         </div>
       ) : (
@@ -358,7 +529,7 @@ function Transactions() {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((t, idx) => (
+                {filteredTransactions.map((t, idx) => (
                   <tr key={t.id}>
                     <td>{idx + 1}</td>
                     <td>{t.date}</td>
@@ -388,9 +559,14 @@ function Transactions() {
             </table>
           </div>
 
-          <p style={{ fontSize: '12px', color: '#888888' }}>
-            Showing {transactions.length} recorded transaction{transactions.length !== 1 ? 's' : ''}.
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#555555', marginTop: '6px' }}>
+            <span>
+              Showing {filteredTransactions.length} of {transactions.length} total transaction{transactions.length !== 1 ? 's' : ''}.
+            </span>
+            <span>
+              Filtered Total: <strong>₹{Math.round(totalFilteredAmount).toLocaleString()}</strong>
+            </span>
+          </div>
         </>
       )}
     </div>

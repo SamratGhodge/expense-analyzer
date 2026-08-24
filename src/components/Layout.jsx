@@ -37,8 +37,18 @@ function Layout() {
               </NavLink>
             </li>
             <li>
+              <NavLink to="/budgets" className={({ isActive }) => isActive ? 'active' : ''}>
+                Budgets
+              </NavLink>
+            </li>
+            <li>
               <NavLink to="/insights" className={({ isActive }) => isActive ? 'active' : ''}>
                 Insights
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/subscriptions" className={({ isActive }) => isActive ? 'active' : ''}>
+                Subscriptions
               </NavLink>
             </li>
             <li>

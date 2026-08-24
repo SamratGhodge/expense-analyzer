@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -13,6 +14,22 @@ function Dashboard() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const storageKey = `ea_budgets_${user?.id || 'guest'}`;
+  const [totalBudgetLimit, setTotalBudgetLimit] = useState(25500);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const total = Object.values(parsed).reduce((s, v) => s + Number(v || 0), 0);
+        if (total > 0) setTotalBudgetLimit(total);
+      }
+    } catch (e) {
+      console.warn('Storage read error', e);
+    }
+  }, [storageKey]);
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -59,6 +76,10 @@ function Dashboard() {
 
   const currentMonthTotal = currentMonthTxns.reduce((s, t) => s + Number(t.amount || 0), 0);
 
+  // Daily average for current month
+  const dayOfMonth = Math.max(now.getDate(), 1);
+  const dailyAverage = Math.round(currentMonthTotal / dayOfMonth);
+
   // Pie chart data: spending by category for current month
   const categoryTotals = {};
   for (const t of currentMonthTxns) {
@@ -86,12 +107,27 @@ function Dashboard() {
     last6.push({ month: label, total: Math.round(monthlyTotals[key] || 0) });
   }
 
+  // Payment mode distribution
+  const paymentModeTotals = { UPI: 0, Card: 0, Cash: 0 };
+  for (const t of currentMonthTxns) {
+    const mode = t.payment_mode || 'Cash';
+    if (paymentModeTotals[mode] !== undefined) {
+      paymentModeTotals[mode] += Number(t.amount || 0);
+    } else {
+      paymentModeTotals.Cash += Number(t.amount || 0);
+    }
+  }
+
+  const totalPaymentMode = Object.values(paymentModeTotals).reduce((s, v) => s + v, 0);
+
   // Recent transactions (latest 5)
   const recent = [...transactions].reverse().slice(0, 5);
 
+  const budgetUsedPercent = totalBudgetLimit > 0 ? Math.round((currentMonthTotal / totalBudgetLimit) * 100) : 0;
+
   return (
     <div>
-      <h1 className="page-title">Dashboard</h1>
+      <h1 className="page-title">Dashboard Overview</h1>
 
       {error && (
         <div className="alert-error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -103,32 +139,46 @@ function Dashboard() {
       )}
 
       {loading ? (
-        <div className="loading-state">Loading dashboard data...</div>
+        <div className="loading-state">Loading dashboard analytics...</div>
       ) : (
         <>
-          {/* Stat cards */}
+          {/* Top Key Performance Stats */}
           <div className="stat-row">
             <div className="stat-card">
-              <div className="label">This Month</div>
-              <div className="value" style={{ color: '#c0392b' }}>
+              <div className="label">This Month's Spending</div>
+              <div className="value" style={{ color: currentMonthTotal > totalBudgetLimit ? '#c0392b' : '#2e6db4' }}>
                 ₹{Math.round(currentMonthTotal).toLocaleString()}
               </div>
             </div>
             <div className="stat-card">
-              <div className="label">All-Time Spending</div>
+              <div className="label">Avg Daily Spend (This Month)</div>
               <div className="value">
-                ₹{Math.round(totalExpenses).toLocaleString()}
+                ₹{dailyAverage.toLocaleString()}<span style={{ fontSize: '12px', fontWeight: 'normal', color: '#888' }}>/day</span>
               </div>
             </div>
             <div className="stat-card">
-              <div className="label">Total Transactions</div>
-              <div className="value">{txnCount}</div>
+              <div className="label">Monthly Budget Status</div>
+              <div className="value" style={{ color: budgetUsedPercent > 100 ? '#c0392b' : budgetUsedPercent >= 80 ? '#e67e22' : '#27ae60' }}>
+                {budgetUsedPercent}%
+                <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#666', marginLeft: '6px' }}>
+                  (₹{Math.round(totalBudgetLimit - currentMonthTotal).toLocaleString()} left)
+                </span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="label">Total Recorded Expenses</div>
+              <div className="value">
+                ₹{Math.round(totalExpenses).toLocaleString()}
+                <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#888', marginLeft: '6px' }}>
+                  ({txnCount} txns)
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Charts row */}
+          {/* Charts Row */}
           <div className="insight-grid">
-            {/* Pie chart */}
+            {/* Category Pie Chart */}
             <div className="insight-box">
               <h3>Spending by Category (This Month)</h3>
               {pieData.length === 0 ? (
@@ -136,7 +186,7 @@ function Dashboard() {
                   No transactions recorded for this month.
                 </p>
               ) : (
-                <ResponsiveContainer width="100%" height={240}>
+                <ResponsiveContainer width="100%" height={230}>
                   <PieChart>
                     <Pie
                       data={pieData}
@@ -144,7 +194,7 @@ function Dashboard() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={80}
+                      outerRadius={75}
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     >
                       {pieData.map((_, idx) => (
@@ -157,10 +207,10 @@ function Dashboard() {
               )}
             </div>
 
-            {/* Line chart */}
+            {/* 6 Months Trend Line Chart */}
             <div className="insight-box">
-              <h3>Monthly Spending (Last 6 Months)</h3>
-              <ResponsiveContainer width="100%" height={240}>
+              <h3>Monthly Spending Trend (Last 6 Months)</h3>
+              <ResponsiveContainer width="100%" height={230}>
                 <LineChart data={last6}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#eeeeee" />
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} />
@@ -178,13 +228,81 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Recent transactions table */}
-          <h2 className="section-title">Recent Transactions</h2>
+          {/* Payment Modes & Budget Widget Row */}
+          <div className="insight-grid" style={{ marginBottom: '20px' }}>
+            {/* Payment Mode Distribution */}
+            <div className="insight-box">
+              <h3>Payment Mode Distribution (This Month)</h3>
+              {totalPaymentMode === 0 ? (
+                <p style={{ color: '#777', fontSize: '13px' }}>No transactions recorded this month.</p>
+              ) : (
+                <div style={{ marginTop: '8px' }}>
+                  {Object.entries(paymentModeTotals).map(([mode, amt]) => {
+                    const pct = totalPaymentMode > 0 ? Math.round((amt / totalPaymentMode) * 100) : 0;
+                    return (
+                      <div className="bar-chart-row" key={mode}>
+                        <span className="bar-label">{mode}</span>
+                        <div className="bar-track">
+                          <div
+                            className="bar-fill"
+                            style={{
+                              width: `${pct}%`,
+                              backgroundColor: mode === 'UPI' ? '#2e6db4' : mode === 'Card' ? '#8e44ad' : '#27ae60',
+                            }}
+                          ></div>
+                        </div>
+                        <span className="bar-value">₹{Math.round(amt).toLocaleString()} ({pct}%)</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Quick Actions & Budget Health */}
+            <div className="insight-box">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <h3 style={{ margin: 0 }}>Budget Health &amp; Shortcuts</h3>
+                <Link to="/budgets" style={{ fontSize: '12px', color: '#2e6db4', fontWeight: 600 }}>Manage Budgets &rarr;</Link>
+              </div>
+
+              <div style={{ fontSize: '13px', color: '#555', marginBottom: '12px', lineHeight: '1.6' }}>
+                You have allocated a monthly limit of <strong>₹{totalBudgetLimit.toLocaleString()}</strong>.
+                {budgetUsedPercent > 100 ? (
+                  <span style={{ color: '#c0392b', fontWeight: 600, display: 'block' }}>
+                    ⚠️ You have exceeded your monthly budget by ₹{Math.round(currentMonthTotal - totalBudgetLimit).toLocaleString()}.
+                  </span>
+                ) : (
+                  <span style={{ color: '#27ae60', fontWeight: 600, display: 'block' }}>
+                    ✓ You have ₹{Math.round(totalBudgetLimit - currentMonthTotal).toLocaleString()} remaining this month.
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <Link to="/transactions" className="btn-secondary" style={{ fontSize: '12px', padding: '5px 12px' }}>
+                  + Add Expense
+                </Link>
+                <Link to="/import-statement" className="btn-secondary" style={{ fontSize: '12px', padding: '5px 12px' }}>
+                  📄 Import Statement
+                </Link>
+                <Link to="/subscriptions" className="btn-secondary" style={{ fontSize: '12px', padding: '5px 12px' }}>
+                  🔔 Subscriptions
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Transactions Table */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h2 className="section-title" style={{ margin: 0 }}>Recent Transactions</h2>
+            <Link to="/transactions" style={{ fontSize: '12px', color: '#2e6db4', fontWeight: 600 }}>View All &rarr;</Link>
+          </div>
 
           {recent.length === 0 ? (
             <div className="insight-box">
               <p style={{ color: '#777777', fontSize: '13px' }}>
-                No transactions found. Go to the Transactions page to add your first expense.
+                No transactions found. Go to the Transactions page to record your first expense.
               </p>
             </div>
           ) : (
@@ -195,6 +313,7 @@ function Dashboard() {
                     <th>Date</th>
                     <th>Description</th>
                     <th>Category</th>
+                    <th>Payment Mode</th>
                     <th>Amount</th>
                   </tr>
                 </thead>
@@ -204,6 +323,7 @@ function Dashboard() {
                       <td>{t.date}</td>
                       <td>{t.description || '—'}</td>
                       <td><span className="category-tag">{t.category}</span></td>
+                      <td>{t.payment_mode || 'Cash'}</td>
                       <td className="amount-expense">₹{Number(t.amount).toLocaleString()}</td>
                     </tr>
                   ))}

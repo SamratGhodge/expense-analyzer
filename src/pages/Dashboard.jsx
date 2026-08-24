@@ -21,13 +21,17 @@ function Dashboard() {
       const { data, error: fetchError } = await supabase
         .from('transactions')
         .select('*')
-        .eq('user_id', user.id)
-        .order('date', { ascending: true });
+        .eq('user_id', user.id);
 
       if (fetchError) {
         setError(fetchError.message);
       } else {
-        setTransactions(data || []);
+        const normalized = (data || []).map((t) => ({
+          ...t,
+          date: t.txn_date || t.date || t.created_at?.split('T')[0] || '',
+        }));
+        normalized.sort((a, b) => new Date(a.date) - new Date(b.date));
+        setTransactions(normalized);
       }
     } catch (err) {
       setError(err.message || 'Failed to load transactions.');

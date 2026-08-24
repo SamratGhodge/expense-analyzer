@@ -35,7 +35,9 @@ export function generateRecommendations(transactions, currentMonth) {
 
   for (const txn of transactions) {
     const cat = txn.category;
-    const month = txn.date.slice(0, 7); // "YYYY-MM"
+    const dateStr = txn.date || txn.txn_date || '';
+    if (!dateStr || dateStr.length < 7) continue;
+    const month = dateStr.slice(0, 7); // "YYYY-MM"
     const amount = Number(txn.amount);
 
     if (!categoryMonthMap[cat]) {

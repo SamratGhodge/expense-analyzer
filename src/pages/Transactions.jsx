@@ -30,13 +30,20 @@ function Transactions() {
       const { data, error: fetchError } = await supabase
         .from('transactions')
         .select('*')
-        .eq('user_id', user.id)
-        .order('date', { ascending: false });
+        .eq('user_id', user.id);
 
       if (fetchError) {
         setError(fetchError.message);
       } else {
-        setTransactions(data || []);
+        // Normalize date from either txn_date or date column
+        const normalized = (data || []).map((t) => ({
+          ...t,
+          date: t.txn_date || t.date || t.created_at?.split('T')[0] || '',
+        }));
+
+        // Sort descending by date
+        normalized.sort((a, b) => new Date(b.date) - new Date(a.date));
+        setTransactions(normalized);
       }
     } catch (err) {
       setError(err.message || 'Failed to fetch transactions.');
@@ -75,17 +82,42 @@ function Transactions() {
 
     try {
       if (editingId) {
-        const { error: updateError } = await supabase
+        // Try updating with txn_date first, fallback to date
+        let updatePayload = {
+          category: form.category,
+          amount: amountNum,
+          payment_mode: form.payment_mode,
+          txn_date: form.date,
+          date: form.date,
+          description: form.description.trim(),
+        };
+
+        let { error: updateError } = await supabase
           .from('transactions')
           .update({
             category: form.category,
             amount: amountNum,
             payment_mode: form.payment_mode,
-            date: form.date,
+            txn_date: form.date,
             description: form.description.trim(),
           })
           .eq('id', editingId)
           .eq('user_id', user.id);
+
+        if (updateError && updateError.message.includes('column "txn_date" does not exist')) {
+          const res = await supabase
+            .from('transactions')
+            .update({
+              category: form.category,
+              amount: amountNum,
+              payment_mode: form.payment_mode,
+              date: form.date,
+              description: form.description.trim(),
+            })
+            .eq('id', editingId)
+            .eq('user_id', user.id);
+          updateError = res.error;
+        }
 
         if (updateError) {
           setError(updateError.message);
@@ -96,16 +128,31 @@ function Transactions() {
           await fetchTransactions();
         }
       } else {
-        const { error: insertError } = await supabase
+        // Insert with txn_date, fallback to date if txn_date doesn't exist
+        let { error: insertError } = await supabase
           .from('transactions')
           .insert({
             user_id: user.id,
             category: form.category,
             amount: amountNum,
             payment_mode: form.payment_mode,
-            date: form.date,
+            txn_date: form.date,
             description: form.description.trim(),
           });
+
+        if (insertError && insertError.message.includes('column "txn_date" does not exist')) {
+          const res = await supabase
+            .from('transactions')
+            .insert({
+              user_id: user.id,
+              category: form.category,
+              amount: amountNum,
+              payment_mode: form.payment_mode,
+              date: form.date,
+              description: form.description.trim(),
+            });
+          insertError = res.error;
+        }
 
         if (insertError) {
           setError(insertError.message);
@@ -155,7 +202,7 @@ function Transactions() {
       category: txn.category,
       amount: String(txn.amount),
       payment_mode: txn.payment_mode,
-      date: txn.date,
+      date: txn.date || txn.txn_date || '',
       description: txn.description || '',
     });
     setError('');

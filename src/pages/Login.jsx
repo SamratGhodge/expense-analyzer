@@ -38,26 +38,51 @@ function Login() {
 
     try {
       if (isSignup) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: email.trim(),
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: cleanEmail,
           password,
         });
 
         if (signUpError) {
           setError(signUpError.message);
         } else {
+          // Sync profile to database if user was returned
+          if (signUpData?.user) {
+            try {
+              await supabase.from('profiles').upsert({
+                id: signUpData.user.id,
+                email: cleanEmail,
+                created_at: new Date().toISOString(),
+                last_sign_in_at: new Date().toISOString(),
+              });
+            } catch (e) {
+              console.warn('Profiles upsert warning:', e);
+            }
+          }
           setMessage('Account created! You can now log in.');
           setIsSignup(false);
         }
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
           password,
         });
 
         if (signInError) {
           setError(signInError.message);
         } else {
+          // Sync profile to database upon sign in
+          if (signInData?.user) {
+            try {
+              await supabase.from('profiles').upsert({
+                id: signInData.user.id,
+                email: cleanEmail,
+                last_sign_in_at: new Date().toISOString(),
+              });
+            } catch (e) {
+              console.warn('Profiles upsert warning:', e);
+            }
+          }
           navigate('/dashboard');
         }
       }

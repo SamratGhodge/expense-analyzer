@@ -1,16 +1,67 @@
-# React + Vite
+# Expense Analyzer
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Expense Analyzer is a React + Vite web application for personal expense tracking, budgeting, subscriptions, and insights.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Email/password and OTP authentication (Supabase Auth)
+- Protected dashboard and finance routes
+- Transaction views and statement import flow
+- Budgeting and subscription tracking pages
+- Insights and report export utilities
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19
+- Vite 8
+- React Router
+- Supabase (Auth + data backend)
+- Recharts
 
-## Expanding the Oxlint configuration
+## Environment Variables
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Create a `.env` file for local development:
+
+```bash
+cp .env.example .env
+```
+
+Required values:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Never commit real secrets to the repository.
+
+## Local Development
+
+```bash
+npm install
+npm run dev
+```
+
+## Build
+
+```bash
+npm run build
+npm run preview
+```
+
+## Deployment (GitHub Pages)
+
+This project is configured for GitHub Pages with GitHub Actions.
+
+1. Push this repository to GitHub.
+2. In **Settings → Secrets and variables → Actions**, add:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+3. In **Settings → Pages**, ensure source is **GitHub Actions**.
+4. Push to `main` branch to trigger deployment.
+
+Your site will publish at:
+
+`https://<your-github-username>.github.io/expense-analyzer/`
+
+## Notes for Supabase
+
+In Supabase Auth settings, add your GitHub Pages URL to allowed redirect URLs if required by your auth flow.
